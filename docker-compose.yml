@@ -1,0 +1,67 @@
+version: "3.4"
+
+services:
+  mvc-container:
+    build:
+      context: .
+      dockerfile: ./dotnet-mvc.dockerfile
+    image: mvc:dev
+    ports:
+      - 3001:5000
+    depends_on:
+      - keycloak-container
+
+  keycloak-container:
+    build:
+      context: .
+    image: keycloak:dev
+    depends_on:
+      postgres-container:
+        condition: service_healthy
+    ports:
+      - 3000:8443
+    environment:
+      # Enable health and metrics support
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres-container:5432/postgres # após // colocar o nome do container do banco de dados
+      - KC_DB_USERNAME=user_vault
+      - KC_DB_PASSWORD=M41d3nsix00
+      - KC_HOSTNAME=localhost
+
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+
+  postgres-container:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=M41d3nsix00
+      - POSTGRES_USER=user_vault
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+
+  pgadmin-container:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=user@domain.com
+      - PGADMIN_DEFAULT_PASSWORD=SuperSecret
+
+volumes:
+  keycloak-db:
+    driver: local
